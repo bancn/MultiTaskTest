@@ -1,0 +1,412 @@
+好的，以下是一个完整的实现代码示例，使用 Google Guice 进行依赖注入，并且 HdaCreateProject 是一个 AnAction。
+
+步骤 1: 创建 common 模块
+通用接口和抽象类
+java
+复制代码
+// common/src/main/java/com/example/common/ProjectTask.java
+package com.example.common;
+
+public interface ProjectTask {
+    void execute();
+}
+
+// common/src/main/java/com/example/common/HdaCreateProject.java
+package com.example.common;
+
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+
+public abstract class HdaCreateProject extends AnAction {
+    @Override
+    public void actionPerformed(AnActionEvent e) {
+        createCommonProject();
+        executeCustomTask(e);
+    }
+
+    public void createCommonProject() {
+        // 通用逻辑
+        System.out.println("Common project creation logic");
+    }
+
+    public abstract void executeCustomTask(AnActionEvent e);
+}
+Guice 模块
+java
+复制代码
+// common/src/main/java/com/example/common/CommonModule.java
+package com.example.common;
+
+import com.google.inject.AbstractModule;
+
+public class CommonModule extends AbstractModule {
+    @Override
+    protected void configure() {
+        // 配置通用绑定
+    }
+}
+步骤 2: 在 Android Studio 和 IntelliJ IDEA 插件项目中引入 common 模块
+在各自的插件项目中，通过构建工具（如 Maven 或 Gradle）引入 common 模块和 Guice 依赖。
+
+示例：Gradle
+
+groovy
+复制代码
+dependencies {
+    implementation project(':common')
+    implementation 'com.google.inject:guice:5.0.1'
+}
+步骤 3: 实现自定义任务并配置依赖注入
+Android Studio 插件
+自定义实现
+
+java
+复制代码
+// as-plugin/src/main/java/com/example/as/HdaCreateProjectForAS.java
+package com.example.as;
+
+import com.example.common.HdaCreateProject;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+
+public class HdaCreateProjectForAS extends HdaCreateProject {
+    @Override
+    public void executeCustomTask(AnActionEvent e) {
+        // Android Studio 的自定义任务逻辑
+        System.out.println("Android Studio custom task logic");
+    }
+}
+
+// as-plugin/src/main/java/com/example/as/ASModule.java
+package com.example.as;
+
+import com.example.common.HdaCreateProject;
+import com.google.inject.AbstractModule;
+
+public class ASModule extends AbstractModule {
+    @Override
+    protected void configure() {
+        bind(HdaCreateProject.class).to(HdaCreateProjectForAS.class);
+    }
+}
+IntelliJ IDEA 插件
+自定义实现
+
+java
+复制代码
+// idea-plugin/src/main/java/com/example/idea/HdaCreateProjectForIDEA.java
+package com.example.idea;
+
+import com.example.common.HdaCreateProject;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+
+public class HdaCreateProjectForIDEA extends HdaCreateProject {
+    @Override
+    public void executeCustomTask(AnActionEvent e) {
+        // IntelliJ IDEA 的自定义任务逻辑
+        System.out.println("IntelliJ IDEA custom task logic");
+    }
+}
+
+// idea-plugin/src/main/java/com/example/idea/IDEAModule.java
+package com.example.idea;
+
+import com.example.common.HdaCreateProject;
+import com.google.inject.AbstractModule;
+
+public class IDEAModule extends AbstractModule {
+    @Override
+    protected void configure() {
+        bind(HdaCreateProject.class).to(HdaCreateProjectForIDEA.class);
+    }
+}
+步骤 4: 配置插件并启动依赖注入
+Android Studio 插件启动代码
+java
+复制代码
+// as-plugin/src/main/java/com/example/as/PluginStartup.java
+package com.example.as;
+
+import com.example.common.CommonModule;
+import com.example.common.HdaCreateProject;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.intellij.openapi.components.ApplicationComponent;
+
+public class PluginStartup implements ApplicationComponent {
+    private Injector injector;
+
+    @Override
+    public void initComponent() {
+        injector = Guice.createInjector(new CommonModule(), new ASModule());
+    }
+
+    public HdaCreateProject getHdaCreateProject() {
+        return injector.getInstance(HdaCreateProject.class);
+    }
+}
+IntelliJ IDEA 插件启动代码
+java
+复制代码
+// idea-plugin/src/main/java/com/example/idea/PluginStartup.java
+package com.example.idea;
+
+import com.example.common.CommonModule;
+import com.example.common.HdaCreateProject;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.intellij.openapi.components.ApplicationComponent;
+
+public class PluginStartup implements ApplicationComponent {
+    private Injector injector;
+
+    @Override
+    public void initComponent() {
+        injector = Guice.createInjector(new CommonModule(), new IDEAModule());
+    }
+
+    public HdaCreateProject getHdaCreateProject() {
+        return injector.getInstance(HdaCreateProject.class);
+    }
+}
+注册 HdaCreateProject 动作
+Android Studio 插件的 plugin.xml
+xml
+复制代码
+<actions>
+    <action id="HdaCreateProject" class="com.example.as.HdaCreateProjectForAS" text="HDA Create Project" description="Create a new HDA project">
+        <add-to-group group-id="FileMenu" anchor="last"/>
+    </action>
+</actions>
+IntelliJ IDEA 插件的 plugin.xml
+xml
+复制代码
+<actions>
+    <action id="HdaCreateProject" class="com.example.idea.HdaCreateProjectForIDEA" text="HDA Create Project" description="Create a new HDA project">
+        <add-to-group group-id="FileMenu" anchor="last"/>
+    </action>
+</actions>
+确保插件启动时初始化 PluginStartup 组件
+Android Studio 插件的 plugin.xml
+xml
+复制代码
+<application-components>
+    <component implementation="com.example.as.PluginStartup"/>
+</application-components>
+IntelliJ IDEA 插件的 plugin.xml
+xml
+复制代码
+<application-components>
+    <component implementation="com.example.idea.PluginStartup"/>
+</application-components>
+通过上述步骤，你可以使用 Google Guice 进行依赖注入，并在 Android Studio 和 IntelliJ IDEA 插件中实现不同的任务逻辑。这样，你的插件代码更加模块化、灵活且易于维护。
+
+
+
+
+
+
+
+步骤 1: 创建 common 模块
+通用接口和抽象类
+java
+复制代码
+// common/src/main/java/com/example/common/ProjectTask.java
+package com.example.common;
+
+public interface ProjectTask {
+    void execute();
+}
+
+// common/src/main/java/com/example/common/HdaCreateProject.java
+package com.example.common;
+
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+
+public abstract class HdaCreateProject extends AnAction {
+    @Override
+    public void actionPerformed(AnActionEvent e) {
+        createCommonProject();
+        executeCustomTask(e);
+    }
+
+    public void createCommonProject() {
+        // 通用逻辑
+        System.out.println("Common project creation logic");
+    }
+
+    public abstract void executeCustomTask(AnActionEvent e);
+}
+
+// common/src/main/java/com/example/common/HdaCreateProjectProvider.java
+package com.example.common;
+
+public interface HdaCreateProjectProvider {
+    HdaCreateProject create();
+}
+步骤 2: 在 Android Studio 和 IntelliJ IDEA 插件项目中引入 common 模块
+在各自的插件项目中，通过构建工具（如 Maven 或 Gradle）引入 common 模块。
+
+示例：Gradle
+
+groovy
+复制代码
+dependencies {
+    implementation project(':common')
+}
+步骤 3: 实现自定义任务并配置 SPI
+Android Studio 插件
+自定义实现
+
+java
+复制代码
+// as-plugin/src/main/java/com/example/as/HdaCreateProjectForAS.java
+package com.example.as;
+
+import com.example.common.HdaCreateProject;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+
+public class HdaCreateProjectForAS extends HdaCreateProject {
+    @Override
+    public void executeCustomTask(AnActionEvent e) {
+        // Android Studio 的自定义任务逻辑
+        System.out.println("Android Studio custom task logic");
+    }
+}
+
+// as-plugin/src/main/java/com/example/as/HdaCreateProjectProviderAS.java
+package com.example.as;
+
+import com.example.common.HdaCreateProject;
+import com.example.common.HdaCreateProjectProvider;
+
+public class HdaCreateProjectProviderAS implements HdaCreateProjectProvider {
+    @Override
+    public HdaCreateProject create() {
+        return new HdaCreateProjectForAS();
+    }
+}
+在 resources/META-INF/services/com.example.common.HdaCreateProjectProvider 文件中添加：
+
+csharp
+复制代码
+com.example.as.HdaCreateProjectProviderAS
+IntelliJ IDEA 插件
+自定义实现
+
+java
+复制代码
+// idea-plugin/src/main/java/com/example/idea/HdaCreateProjectForIDEA.java
+package com.example.idea;
+
+import com.example.common.HdaCreateProject;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+
+public class HdaCreateProjectForIDEA extends HdaCreateProject {
+    @Override
+    public void executeCustomTask(AnActionEvent e) {
+        // IntelliJ IDEA 的自定义任务逻辑
+        System.out.println("IntelliJ IDEA custom task logic");
+    }
+}
+
+// idea-plugin/src/main/java/com/example/idea/HdaCreateProjectProviderIDEA.java
+package com.example.idea;
+
+import com.example.common.HdaCreateProject;
+import com.example.common.HdaCreateProjectProvider;
+
+public class HdaCreateProjectProviderIDEA implements HdaCreateProjectProvider {
+    @Override
+    public HdaCreateProject create() {
+        return new HdaCreateProjectForIDEA();
+    }
+}
+在 resources/META-INF/services/com.example.common.HdaCreateProjectProvider 文件中添加：
+
+复制代码
+com.example.idea.HdaCreateProjectProviderIDEA
+步骤 4: 插件启动代码
+Android Studio 插件启动代码
+java
+复制代码
+// as-plugin/src/main/java/com/example/as/PluginStartup.java
+package com.example.as;
+
+import com.example.common.HdaCreateProjectProvider;
+import com.intellij.openapi.components.ApplicationComponent;
+import java.util.ServiceLoader;
+
+public class PluginStartup implements ApplicationComponent {
+    private HdaCreateProjectProvider provider;
+
+    @Override
+    public void initComponent() {
+        ServiceLoader<HdaCreateProjectProvider> loader = ServiceLoader.load(HdaCreateProjectProvider.class);
+        provider = loader.iterator().next();
+    }
+
+    public HdaCreateProjectProvider getHdaCreateProjectProvider() {
+        return provider;
+    }
+}
+IntelliJ IDEA 插件启动代码
+java
+复制代码
+// idea-plugin/src/main/java/com/example/idea/PluginStartup.java
+package com.example.idea;
+
+import com.example.common.HdaCreateProjectProvider;
+import com.intellij.openapi.components.ApplicationComponent;
+import java.util.ServiceLoader;
+
+public class PluginStartup implements ApplicationComponent {
+    private HdaCreateProjectProvider provider;
+
+    @Override
+    public void initComponent() {
+        ServiceLoader<HdaCreateProjectProvider> loader = ServiceLoader.load(HdaCreateProjectProvider.class);
+        provider = loader.iterator().next();
+    }
+
+    public HdaCreateProjectProvider getHdaCreateProjectProvider() {
+        return provider;
+    }
+}
+注册 HdaCreateProject 动作
+Android Studio 插件的 plugin.xml
+xml
+复制代码
+<actions>
+    <action id="HdaCreateProject" class="com.example.as.HdaCreateProjectForAS" text="HDA Create Project" description="Create a new HDA project">
+        <add-to-group group-id="FileMenu" anchor="last"/>
+    </action>
+</actions>
+IntelliJ IDEA 插件的 plugin.xml
+xml
+复制代码
+<actions>
+    <action id="HdaCreateProject" class="com.example.idea.HdaCreateProjectForIDEA" text="HDA Create Project" description="Create a new HDA project">
+        <add-to-group group-id="FileMenu" anchor="last"/>
+    </action>
+</actions>
+确保插件启动时初始化 PluginStartup 组件
+Android Studio 插件的 plugin.xml
+xml
+复制代码
+<application-components>
+    <component implementation="com.example.as.PluginStartup"/>
+</application-components>
+IntelliJ IDEA 插件的 plugin.xml
+xml
+复制代码
+<application-components>
+    <component implementation="com.example.idea.PluginStartup"/>
+</application-components>
+通过上述步骤，你可以使用 SPI 实现 HdaCreateProject 的多实现管理，并在 Android Studio 和 IntelliJ IDEA 插件中实现不同的任务逻辑。这种方式减少了外部依赖，使得插件体积更小。
+
+
+
+
+
+
